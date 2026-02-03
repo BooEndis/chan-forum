@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>AnonChan</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<style>
+body {
+  background: #0b0b0b;
+  color: #ccc;
+  font-family: Arial;
+  margin: 0;
+}
+header {
+  padding: 10px;
+  background: #111;
+  border-bottom: 1px solid #333;
+}
+h1 { color: #ff66cc; }
+.thread {
+  border: 1px solid #333;
+  margin: 10px;
+  padding: 10px;
+}
+img {
+  max-width: 150px;
+  display: block;
+  margin-top: 5px;
+}
+textarea, input {
+  width: 100%;
+  background: #000;
+  color: #fff;
+  border: 1px solid #333;
+}
+button {
+  background: #ff66cc;
+  border: none;
+  padding: 6px;
+  margin-top: 5px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>/b/ – AnonChan</h1>
+</header>
+
+<div style="padding:10px;">
+  <textarea id="text" placeholder="Start a new thread"></textarea>
+  <input type="file" id="image">
+  <button onclick="postThread()">Post</button>
+</div>
+
+<div id="threads"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+async function postThread() {
+  const msg = text.value;
+  if (!msg) return;
+
+  let imageUrl = "";
+  const file = image.files[0];
+
+  if (file) {
+    const ref = storage.ref("threads/" + Date.now() + file.name);
+    await ref.put(file);
+    imageUrl = await ref.getDownloadURL();
+  }
+
+  await db.collection("threads").add({
+    text: msg,
+    image: imageUrl,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  text.value = "";
+  image.value = "";
+}
+
+db.collection("threads")
+  .orderBy("createdAt", "desc")
+  .onSnapshot(snapshot => {
+    threads.innerHTML = "";
+    snapshot.forEach(doc => {
+      const t = doc.data();
+      threads.innerHTML += `
+        <div class="thread">
+          <p>${t.text}</p>
+          ${t.image ? `HTML
